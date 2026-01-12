@@ -171,9 +171,9 @@ export function useGameState(address: string | undefined) {
       setIsSpinning(false);
       spinInProgressRef.current = false;
       
-      // Show error state
+      // Show error state - use valid symbol "7" as placeholder
       const errorResult: SpinResult = {
-        symbols: ["❌", "❌", "❌"] as [Symbol, Symbol, Symbol],
+        symbols: ["7", "7", "7"] as [Symbol, Symbol, Symbol],
         points: 0,
         matchType: "Error - tap to retry",
         isJackpot: false,
