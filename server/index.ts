@@ -47,7 +47,13 @@ const corsOptions: cors.CorsOptions = {
       origin.includes('cloudflared')
     );
     
-    if (NODE_ENV === 'development' || allowedOrigins.includes(origin) || isNgrokDomain || isCloudflaredDomain) {
+    // Allow Render domains (production)
+    const isRenderDomain = origin && (
+      origin.includes('.onrender.com') ||
+      origin.includes('render.com')
+    );
+    
+    if (NODE_ENV === 'development' || allowedOrigins.includes(origin) || isNgrokDomain || isCloudflaredDomain || isRenderDomain) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

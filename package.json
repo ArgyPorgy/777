@@ -10,6 +10,7 @@
     "build": "tsc && vite build",
     "build:server": "tsc --project tsconfig.server.json",
     "start:server": "node dist/server/index.js",
+    "start:frontend": "npx serve -s dist -l 3000",
     "lint": "biome check src",
     "preview": "vite preview",
     "db:migrate": "tsx server/db/migrate.ts"
