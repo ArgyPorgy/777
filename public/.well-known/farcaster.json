@@ -1,0 +1,15 @@
+{
+  "name": "Myrad Mini App",
+  "description": "A mini app for Myrad platform",
+  "icons": [
+    {
+      "src": "./logo.png"
+    }
+  ],
+  "tabs": [
+    {
+      "path": "/",
+      "label": "Home"
+    }
+  ]
+}
