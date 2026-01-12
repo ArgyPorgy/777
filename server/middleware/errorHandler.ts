@@ -4,9 +4,9 @@ import type { ApiResponse } from '../types/index.js';
 
 export function errorHandler(
   err: Error | ZodError,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void {
   // Zod validation errors
   if (err instanceof ZodError) {

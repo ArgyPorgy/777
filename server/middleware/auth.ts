@@ -38,7 +38,7 @@ export function extractWalletAddress(
 // Optional wallet address (for public endpoints like leaderboard)
 export function optionalWalletAddress(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): void {
   const address = (req.query.address as string) || 

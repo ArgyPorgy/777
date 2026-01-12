@@ -11,8 +11,8 @@
  * @returns true if signature is valid
  */
 export async function verifyWalletSignature(
-  address: string,
-  message: string,
+  _address: string,
+  _message: string,
   signature: string
 ): Promise<boolean> {
   // TODO: Implement actual cryptographic verification

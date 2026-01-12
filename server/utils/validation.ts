@@ -128,8 +128,8 @@ export function calculatePayout(
 
 // Verify wallet signature (basic validation - can be enhanced with actual crypto verification)
 export function verifySignature(
-  address: string,
-  message: string,
+  _address: string,
+  _message: string,
   signature: string
 ): boolean {
   // TODO: Implement actual signature verification using ethers.js or viem

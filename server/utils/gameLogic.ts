@@ -23,11 +23,12 @@ export async function loadGameState(walletAddress: string): Promise<GameState> {
 
     let users: UserRecord[];
     try {
-      users = await sql<UserRecord[]>`
+      const result = await sql`
         SELECT * FROM users 
         WHERE wallet_address = ${walletAddress.toLowerCase()}
         LIMIT 1
       `;
+      users = result as UserRecord[];
     } catch (dbError) {
       console.error('Database error loading user:', dbError);
       return defaultState;
@@ -53,11 +54,11 @@ export async function loadGameState(walletAddress: string): Promise<GameState> {
     // Get last_spin_date as text directly from database to avoid timezone issues
     let lastSpinDateStr: string | null = null;
     try {
-      const dateResult = await sql<{ date_text: string | null }[]>`
+      const dateResult = await sql`
         SELECT last_spin_date::text as date_text 
         FROM users 
         WHERE wallet_address = ${walletAddress.toLowerCase()}
-      `;
+      ` as { date_text: string | null }[];
       if (dateResult.length > 0 && dateResult[0].date_text) {
         lastSpinDateStr = dateResult[0].date_text;
       }
@@ -82,12 +83,12 @@ export async function loadGameState(walletAddress: string): Promise<GameState> {
     // Load recent spin history (last 50)
     let spinHistory: SpinResult[] = [];
     try {
-      const spins = await sql<SpinRecord[]>`
+      const spins = await sql`
         SELECT * FROM spins 
         WHERE wallet_address = ${walletAddress.toLowerCase()}
         ORDER BY created_at DESC
         LIMIT 50
-      `;
+      ` as SpinRecord[];
 
       spinHistory = spins.map((spin) => ({
         symbols: spin.symbols,
@@ -221,12 +222,7 @@ export async function getLeaderboard(limit = 50, offset = 0): Promise<Array<{
   jackpots: number;
 }>> {
   try {
-    const entries = await sql<Array<{
-      address: string;
-      points: bigint;
-      rank: number;
-      jackpots: number;
-    }>>`
+    const entries = await sql`
       SELECT 
         address,
         points::bigint as points,
@@ -236,7 +232,12 @@ export async function getLeaderboard(limit = 50, offset = 0): Promise<Array<{
       ORDER BY rank ASC
       LIMIT ${limit}
       OFFSET ${offset}
-    `;
+    ` as Array<{
+      address: string;
+      points: bigint;
+      rank: number;
+      jackpots: number;
+    }>;
 
     // Handle empty results gracefully
     if (!entries || entries.length === 0) {
@@ -259,12 +260,12 @@ export async function getLeaderboard(limit = 50, offset = 0): Promise<Array<{
 // Get user rank
 export async function getUserRank(walletAddress: string): Promise<number | null> {
   try {
-    const result = await sql<Array<{ rank: bigint }>>`
+    const result = await sql`
       SELECT rank 
       FROM leaderboard 
       WHERE address = ${walletAddress.toLowerCase()}
       LIMIT 1
-    `;
+    ` as Array<{ rank: bigint }>;
 
     return result.length > 0 ? Number(result[0].rank) : null;
   } catch (error) {
