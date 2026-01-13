@@ -514,6 +514,15 @@
   font-weight: 900;
 }
 
+.win-overlay.no-win {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.win-overlay.no-win .win-text-small {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+}
+
 /* Spin Button Section */
 .spin-button-section {
   display: flex;

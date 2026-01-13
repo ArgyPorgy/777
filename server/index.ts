@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import { testConnection } from './db/connection.js';
+import { testConnection, sql } from './db/connection.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { extractWalletAddress, optionalWalletAddress } from './middleware/auth.js';
 import gameRoutes from './routes/game.js';
@@ -80,22 +80,7 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Stricter rate limit for spin endpoint to prevent abuse
-const spinLimiter = rateLimit({
-  windowMs: 5 * 1000, // 5 seconds
-  max: 1, // 1 spin per 5 seconds
-  message: {
-    success: false,
-    error: 'Too fast',
-    message: 'Please wait a few seconds between spins',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => (req as any).walletAddress || req.ip, // Rate limit per wallet
-});
-
 app.use('/api/', generalLimiter);
-app.use('/api/game/spin', spinLimiter);
 
 // Health check endpoint
 app.get('/health', async (_req: Request, res: Response): Promise<void> => {
@@ -127,6 +112,7 @@ app.use(errorHandler);
 
 // Store server reference for graceful shutdown
 let server: ReturnType<typeof app.listen> | null = null;
+let leaderboardRefreshInterval: NodeJS.Timeout | null = null;
 
 // Start server
 async function startServer() {
@@ -146,6 +132,17 @@ async function startServer() {
       console.log(`🌐 Health check: http://localhost:${PORT}/health`);
       console.log(`📊 API: http://localhost:${PORT}/api`);
       console.log(`🔌 Listening on: 0.0.0.0:${PORT} (all interfaces)`);
+      
+      // Start background leaderboard refresh (every 5 seconds)
+      leaderboardRefreshInterval = setInterval(async () => {
+        try {
+          await sql`SELECT refresh_leaderboard()`;
+        } catch (error) {
+          console.warn('Background leaderboard refresh failed:', error);
+        }
+      }, 5000); // 5 seconds
+      
+      console.log('🔄 Leaderboard auto-refresh started (every 5 seconds)');
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
@@ -156,6 +153,13 @@ async function startServer() {
 // Graceful shutdown function
 function shutdown(signal: string) {
   console.log(`\n${signal} received, shutting down gracefully...`);
+  
+  // Clear leaderboard refresh interval
+  if (leaderboardRefreshInterval) {
+    clearInterval(leaderboardRefreshInterval);
+    leaderboardRefreshInterval = null;
+    console.log('🔄 Leaderboard refresh stopped');
+  }
   
   if (server) {
     server.close(() => {

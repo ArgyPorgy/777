@@ -189,12 +189,10 @@ export async function saveSpin(
       console.error('Error updating user:', updateError);
     }
 
-    // Refresh leaderboard (non-critical)
-    try {
-      await sql`SELECT refresh_leaderboard()`;
-    } catch (error) {
+    // Refresh leaderboard in background (fire-and-forget, don't block response)
+    sql`SELECT refresh_leaderboard()`.catch((error) => {
       console.warn('Failed to refresh leaderboard:', error);
-    }
+    });
 
     return {
       symbols,

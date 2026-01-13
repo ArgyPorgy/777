@@ -40,12 +40,38 @@ export function SlotMachine({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const timersRef = useRef<NodeJS.Timeout[]>([]); // Track all timers
   const currentResultRef = useRef<SpinResult | null>(null); // Store result for timers
+  const updateCountRef = useRef<number>(0); // Track interval update count
   const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   // Update the result ref when currentResult changes (for timers to access)
+  // The timers will read from this ref when they fire, so they'll get the real result
   useEffect(() => {
     currentResultRef.current = currentResult;
-  }, [currentResult]);
+    
+    // If real result arrived and some wheels have already stopped, update their display
+    if (currentResult && currentResult.matchType !== "Spinning..." && !spinningColumns.every(s => s)) {
+      setDisplayGrid((prev) => {
+        const newGrid = prev.map(row => [...row]);
+        // Update only stopped wheels (where spinningColumns[colIndex] is false)
+        if (!spinningColumns[0]) {
+          newGrid[1][0] = currentResult.symbols[0];
+          newGrid[0][0] = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+          newGrid[2][0] = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+        }
+        if (!spinningColumns[1]) {
+          newGrid[1][1] = currentResult.symbols[1];
+          newGrid[0][1] = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+          newGrid[2][1] = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+        }
+        if (!spinningColumns[2]) {
+          newGrid[1][2] = currentResult.symbols[2];
+          newGrid[0][2] = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+          newGrid[2][2] = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+        }
+        return newGrid;
+      });
+    }
+  }, [currentResult, spinningColumns]);
 
   // Handle spin animation - triggered when BOTH spinId changes AND currentResult is available
   useEffect(() => {
@@ -87,6 +113,7 @@ export function SlotMachine({
 
     // All 3 columns start spinning at the same time
     spinningRef.current = [true, true, true];
+    updateCountRef.current = 0; // Reset update count for new spin
     setSpinningColumns([true, true, true]);
 
     // Stop columns one by one (1 second gap between each stop)
@@ -95,7 +122,8 @@ export function SlotMachine({
       spinningRef.current = [false, true, true];
       setSpinningColumns([false, true, true]);
       const result = currentResultRef.current;
-      if (result) {
+      // Only update display if we have a real result (not placeholder)
+      if (result && result.matchType !== "Spinning...") {
         setDisplayGrid((prev) => {
           const newGrid = prev.map(row => [...row]);
           newGrid[1][0] = result.symbols[0];
@@ -111,7 +139,8 @@ export function SlotMachine({
       spinningRef.current = [false, false, true];
       setSpinningColumns([false, false, true]);
       const result = currentResultRef.current;
-      if (result) {
+      // Only update display if we have a real result (not placeholder)
+      if (result && result.matchType !== "Spinning...") {
         setDisplayGrid((prev) => {
           const newGrid = prev.map(row => [...row]);
           newGrid[1][1] = result.symbols[1];
@@ -127,7 +156,8 @@ export function SlotMachine({
       spinningRef.current = [false, false, false];
       setSpinningColumns([false, false, false]);
       const result = currentResultRef.current;
-      if (result) {
+      // Only update display if we have a real result (not placeholder)
+      if (result && result.matchType !== "Spinning...") {
         setDisplayGrid((prev) => {
           const newGrid = prev.map(row => [...row]);
           newGrid[1][2] = result.symbols[2];
@@ -136,9 +166,9 @@ export function SlotMachine({
           return newGrid;
         });
 
-        // Show win popup if points > 0
+        // Show popup for any result (win or no win)
         setTimeout(() => {
-          if (result.points > 0) {
+          if (result) {
             setShowWin(true);
             setTimeout(() => setShowWin(false), 3000);
           }
@@ -147,9 +177,11 @@ export function SlotMachine({
     }, 3000));
 
     // Continuous animation - update symbols for spinning columns
-    intervalRef.current = setInterval(() => {
-      setDisplayGrid((prev) => {
-        return prev.map((row) => 
+    const intervalId = setInterval(() => {
+      try {
+        updateCountRef.current += 1;
+        setDisplayGrid((prev) => {
+        const newGrid = prev.map((row) => 
           row.map((symbol, colIndex) => {
             if (spinningRef.current[colIndex]) {
               return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
@@ -157,9 +189,13 @@ export function SlotMachine({
             return symbol;
           })
         );
+        return newGrid;
       });
+      } catch (error) {
+        console.error("[INTERVAL] Callback ERROR:", error);
+      }
     }, 80); // Fast update for smooth spinning
-
+    intervalRef.current = intervalId;
     // Cleanup interval after all stops - CRITICAL: This MUST run to stop spinning
     timersRef.current.push(setTimeout(() => {
       if (intervalRef.current) {
@@ -187,7 +223,7 @@ export function SlotMachine({
       timersRef.current.forEach(timer => clearTimeout(timer));
       timersRef.current = [];
     };
-  }, [spinId, currentResult]); // Depend on spinId and currentResult - animatedSpinId is only checked, not reacted to
+  }, [spinId]); // Only depend on spinId - currentResult is accessed via ref, so we don't need it in deps
 
   const handleSpin = async () => {
     if (isSpinning) return;
@@ -258,11 +294,17 @@ export function SlotMachine({
               </div>
             </div>
 
-            {/* Win Overlay */}
-            {showWin && currentResult && currentResult.points > 0 && (
-              <div className="win-overlay">
-                <div className="win-text-small">you won</div>
-                <div className="win-amount">{getWinMessage()}</div>
+            {/* Win/Loss Overlay */}
+            {showWin && currentResult && (
+              <div className={`win-overlay ${currentResult.points === 0 ? 'no-win' : ''}`}>
+                {currentResult.points > 0 ? (
+                  <>
+                    <div className="win-text-small">you won</div>
+                    <div className="win-amount">{getWinMessage()}</div>
+                  </>
+                ) : (
+                  <div className="win-text-small">better luck next time</div>
+                )}
               </div>
             )}
 

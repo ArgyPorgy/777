@@ -146,24 +146,32 @@ export function useGameState(address: string | undefined) {
       setIsSpinning(true);
       setError(null);
       
-      // Send to backend - server generates symbols and calculates payout
-      const result = await saveSpin(address);
-
-      // Update with server's authoritative result FIRST (before triggering animation)
-      setCurrentResult(result);
+      // START ANIMATION IMMEDIATELY with placeholder (don't wait for API)
+      const spinStartTime = Date.now();
+      const placeholderResult: SpinResult = {
+        symbols: ["7", "7", "7"] as [Symbol, Symbol, Symbol],
+        points: 0,
+        matchType: "Spinning...",
+        isJackpot: false,
+      };
+      setCurrentResult(placeholderResult);
+      setSpinId(prev => prev + 1); // Trigger animation immediately
       
-      // THEN increment spin ID to trigger animation (now result is available)
-      setSpinId(prev => prev + 1);
+      // Send to backend - server generates symbols and calculates payout (in background)
+      const result = await saveSpin(address);
+      // Update with server's authoritative result (animation already running)
+      setCurrentResult(result);
 
       // Reload game state and leaderboard in background
       getGameState(address).then(setGameState).catch(() => {});
       getLeaderboard(50, 0, address).then(data => setLeaderboard(data.entries || [])).catch(() => {});
 
-      // Reset spinning state after animation completes (matches 3.5s animation)
+      // Reset spinning state after animation completes (3500ms from when animation started, not from API return)
+      const remainingTime = Math.max(0, 3500 - (Date.now() - spinStartTime));
       setTimeout(() => {
         setIsSpinning(false);
         spinInProgressRef.current = false;
-      }, 3600);
+      }, remainingTime);
 
       return result;
     } catch (err) {
